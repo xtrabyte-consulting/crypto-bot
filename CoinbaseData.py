@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 from pandas import DataFrame
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 class CoinbaseDataCollector:
     PERIODS = {
@@ -30,7 +31,7 @@ class CoinbaseDataCollector:
         df.to_csv('trading_pairs.csv')
         return df
 
-    def get_historical_prices(self, trading_pair, granularity) -> DataFrame:
+    def __get_historical_prices(self, trading_pair, granularity) -> DataFrame:
         """
         Fetches historic rates for a cryptocurrency. Rates are returned in grouped buckets.
         :param trading_pair: Coin pair id (e.g., 'BTC-USD')
@@ -61,7 +62,7 @@ class CoinbaseDataCollector:
         prices.to_csv(f'{trading_pair}_{granularity}_prices.csv', index=True)
         return prices
     
-    def get_historical_prices_all_granularities(self, trading_pair) -> [DataFrame]:
+    def __get_historical_prices_all_granularities(self, trading_pair) -> [DataFrame]:
         """
         Fetches historic rates for a cryptocurrency at all available timeslices. 
         Rates are returned in grouped buckets.
@@ -74,6 +75,24 @@ class CoinbaseDataCollector:
             df = self.get_historical_prices(trading_pair, granularity)
             frames.append(df)
         return frames
+    
+    def get_historical_prices(self, trading_pair, granularity):
+        """
+        Fetches historic rates for a cryptocurrency. Rates are returned in grouped buckets.
+        :param trading_pair: Coin pair id (e.g., 'BTC-USD')
+        :param granularity: Desired timeslice in seconds
+        """
+        with ThreadPoolExecutor() as executor:
+            return executor.submit(self.__get_historical_prices, trading_pair, granularity)
+        
+    def get_historical_prices_all_granularities(self, trading_pair):
+        """
+        Fetches historic rates for a cryptocurrency at all available timeslices. 
+        Rates are returned in grouped buckets.
+        :param trading_pair: Coin pair id (e.g., 'BTC-USD')
+        """
+        with ThreadPoolExecutor() as executor:
+            return executor.submit(self.__get_historical_prices_all_granularities, trading_pair)
     
     def visualize_historical_prices(self, trading_pair, granularity):
         """
